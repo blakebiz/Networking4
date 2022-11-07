@@ -1,43 +1,24 @@
 import socket
 import time
-import threading
 
-class Result:
-    def __init__(self):
-        self.response = None
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+sock.settimeout(5)
 sock.connect(('www.google.com', 80))
 sock.send(b'GET / HTTP/1.1\r\nHost:www.google.com\r\n\r\n')
+
 response = b""
 while True:
-    print('waiting')
-    no_response = False
-    start = time.time()
-    result = Result()
-    def get_response(res):
-        res.response = sock.recv(4096)
-
-    threading.Thread(target=get_response, args=(result,)).start()
-    while result.response is None:
-        print('looping')
-        time.sleep(.2)
-        if time.time() - start > 5:
-            no_response = True
+    try:
+        chunk = sock.recv(4096)
+        if len(chunk) == 0:     # No more data received, quitting
             break
-    else:
-        if len(result.response) == 0:     # No more data received, quitting
-            break
-        else:
-            print(len(result.response), result.response)
-        response += result.response;
-    print(no_response)
-    if no_response:
+        response += chunk
+    except TimeoutError:
         break
-print('done')
+
 # print(response)
-with open('test.html', 'w') as f:
-    f.write(response.decode())
+with open('test.html', 'wb') as f:
+    f.write(response)
 # print(response.decode())
 sock.close()
