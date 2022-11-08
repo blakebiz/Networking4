@@ -1,25 +1,31 @@
 import json
 import socket
 import re
+import threading
+
 
 class Server:
-    def __init__(self):
+    def __init__(self, default_timeout=10, extended_timeout=100):
         self.sockets = []
         self.accepting_connections = True
+        self.default_timeout = default_timeout
+        self.extended_timeout = extended_timeout
 
     def listen(self):
         def accept_connection():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.bind(('0.0.0.0', 5011))
             print(dir(sock))
-            data = sock.recv(4096)
-            sock.settimeout(3)
+            data = self.get_response(sock)
+            sock.settimeout(self.default_timeout)
             self.sockets.append(sock)
-            self.initial_connection(sock, data)
+            threading.Thread(target=self.initial_connection, args=(sock, data)).start()
         while self.accepting_connections:
             accept_connection()
 
-    def get_response(self, sock, initial_data=b''):
+    def get_response(self, sock, extend=False):
+        if extend:
+            sock.settimeout(self.extended_timeout)
         response = b""
         while True:
             try:
@@ -29,7 +35,8 @@ class Server:
                 response += chunk
             except socket.timeout:
                 break
-        return initial_data + response
+            sock.settimeout(self.default_timeout)
+        return response
     #
     # def seperate_header(self, response):
     #     segments = response.split(b'\r\n\r\n')
@@ -40,8 +47,7 @@ class Server:
     #             body += segment
     #     return header, body
 
-    def initial_connection(self, sock, initial_data):
-        response = self.get_response(sock, initial_data)
+    def initial_connection(self, sock, response):
         pattern = re.compile(r'([^ ]*) */ *HTTP/1.1([^ :]*) ?Host:([^ ]*) +([^ ]*)')
         sub_sep, _type, host, sep = pattern.fullmatch(response.decode()).groups()
         pattern = re.compile(r'(\d+.\d+.\d+.\d+)/(.*)')
@@ -62,9 +68,13 @@ class Server:
         for chunk in chunks:
             sock.send(chunk)
         sock.send(b'')
+        self.wait_for_command(sock)
 
 
-
+    def wait_for_command(self, sock):
+        response = self.get_response(sock, extend=True)
+        if response.startswith(b'CLOSE_CONNECTION'):
+            sock.close()
 
 s = Server()
 s.listen()
