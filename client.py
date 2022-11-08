@@ -6,7 +6,7 @@ def request_site(host, port, _type, file=''):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(5)
     sock.connect((host, port))
-    sock.send(f'{_type} / HTTP/1.1\r\nHost:{host}{("/" + file) * bool(file)}\r\n\r\n'.encode())
+    sock.send(f'{_type} / HTTP/1.1\r\nHost:{host}{("/" + file) * bool(file)} \r\n\r\n'.encode())
 
     response = b""
     while True:
@@ -15,7 +15,7 @@ def request_site(host, port, _type, file=''):
             if len(chunk) == 0:     # No more data received, quitting
                 break
             response += chunk
-        except TimeoutError:
+        except socket.timeout:
             break
 
     segments = response.split(b'\r\n\r\n')
@@ -27,13 +27,21 @@ def request_site(host, port, _type, file=''):
 
     with open('test.html', 'wb') as f:
         f.write(body)
-
+    print(header)
     sock.close()
+
 
 def main():
     args = sys.argv
     if len(args) not in (3, 4):
-        raise ValueError('Invalid amount of arguments supplied: Must supply (host, port_number, type, [filename])')
+        args = [
+            input('Input a host: '),
+            input('Input a port: '),
+            input('Input request type (GET/POST): '),
+            input('Optionally input a file: ')
+        ]
     request_site(*args)
 
+
+request_site('www.cnn.com', 80, 'GET')
 
