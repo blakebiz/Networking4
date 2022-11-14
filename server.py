@@ -15,11 +15,10 @@ class Server:
         def accept_connection():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.bind(('0.0.0.0', 5011))
-            print(dir(sock))
             data = self.get_response(sock)
             sock.settimeout(self.default_timeout)
             self.sockets.append(sock)
-            threading.Thread(target=self.initial_connection, args=(sock, data)).start()
+            threading.Thread(target=self.make_connection, args=(sock, data)).start()
         while self.accepting_connections:
             accept_connection()
 
@@ -47,34 +46,40 @@ class Server:
     #             body += segment
     #     return header, body
 
-    def initial_connection(self, sock, response):
+    def make_connection(self, sock, response):
         pattern = re.compile(r'([^ ]*) */ *HTTP/1.1([^ :]*) ?Host:([^ ]*) +([^ ]*)')
-        sub_sep, _type, host, sep = pattern.fullmatch(response.decode()).groups()
-        pattern = re.compile(r'(\d+.\d+.\d+.\d+)/(.*)')
-        _, file = pattern.fullmatch(host).groups()
+        match = pattern.fullmatch(response.decode())
+        if match:
+            sub_sep, _type, host, sep = match.groups()
+            pattern = re.compile(r'(\d+.\d+.\d+.\d+)/(.*)')
+            _, file = pattern.fullmatch(host).groups()
+            chunks = []
+            sub_sep.encode()
+            try:
+                with open(file, 'rb') as f:
+                    while chunk := f.read(4096-len(sub_sep)):
+                        chunks.append(chunk + sub_sep)
+            except FileNotFoundError:
+                chunks = [b'FILE NOT FOUND!']
 
-        chunks = []
-        sub_sep.encode()
-        try:
-            with open(file, 'rb') as f:
-                while chunk := file.read(4096-len(sub_sep)):
-                    chunks.append(chunk + sub_sep)
-        except FileNotFoundError:
-            chunks = [b'FILE NOT FOUND!']
-
-        header = json.dumps({'dummy-data': True})
-
-        sock.send(header.encode() + sep)
-        for chunk in chunks:
-            sock.send(chunk)
-        sock.send(b'')
-        self.wait_for_command(sock)
-
+            header = json.dumps({'dummy-data': True})
+            sock.send(header.encode() + sep)
+            for chunk in chunks:
+                sock.send(chunk)
+            sock.send(b'')
+            self.wait_for_command(sock)
+        else:
+            sock.send(b'Invalid request, closing connection. To retry, reconnect.')
+            sock.send(b'')
 
     def wait_for_command(self, sock):
         response = self.get_response(sock, extend=True)
         if response.startswith(b'CLOSE_CONNECTION'):
+            sock.send(b'CONNECTION_CLOSED')
+            sock.send(b'')
             sock.close()
+        else:
+            self.make_connection(sock, response)
 
 s = Server()
 s.listen()
