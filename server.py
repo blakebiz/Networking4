@@ -5,20 +5,25 @@ import threading
 
 
 class Server:
-    def __init__(self, default_timeout=10, extended_timeout=100):
+    def __init__(self, default_timeout=10, extended_timeout=100, host='0.0.0.0', port=5010):
         self.sockets = []
         self.accepting_connections = True
         self.default_timeout = default_timeout
         self.extended_timeout = extended_timeout
 
+        self.host, self.port = host, port
+
     def listen(self):
         def accept_connection():
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.bind(('0.0.0.0', 5011))
+            sock.bind((self.host, self.port))
+            sock.listen(1)
+            sock, _ = sock.accept()
             data = self.get_response(sock)
             sock.settimeout(self.default_timeout)
             self.sockets.append(sock)
             threading.Thread(target=self.make_connection, args=(sock, data)).start()
+
         while self.accepting_connections:
             accept_connection()
 

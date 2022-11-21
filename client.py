@@ -43,5 +43,5 @@ def main():
     request_site(*args)
 
 
-request_site('www.cnn.com', 80, 'GET')
+request_site('127.0.0.1', 5010, 'GET')
 
