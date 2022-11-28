@@ -4,7 +4,7 @@ import sys
 
 def request_site(host, port, _type, file=''):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.settimeout(5)
+    sock.settimeout(15)
     sock.connect((host, port))
     sock.send(f'{_type} / HTTP/1.1\r\nHost:{host}{("/" + file) * bool(file)} \r\n\r\n'.encode())
 
@@ -16,6 +16,7 @@ def request_site(host, port, _type, file=''):
                 break
             response += chunk
         except socket.timeout:
+            print('timeout')
             break
 
     segments = response.split(b'\r\n\r\n')
@@ -24,16 +25,20 @@ def request_site(host, port, _type, file=''):
     if len(segments) > 1:
         for segment in segments[1:]:
             body += segment
-
-    with open('test.html', 'wb') as f:
-        f.write(body)
-    print(header)
+    print('header:', header)
+    if file:
+        print(f'file has been saved as: rec_{file}')
+        with open('rec_' + file, 'wb') as f:
+            f.write(body)
+    else:
+        print('body:', body)
     sock.close()
 
 
 def main():
-    args = sys.argv
+    args = sys.argv[1:]
     if len(args) not in (3, 4):
+        print('arguments not supplied properly in command line, must be manually entered.')
         args = [
             input('Input a host: '),
             input('Input a port: '),
@@ -42,6 +47,6 @@ def main():
         ]
     request_site(*args)
 
-
-request_site('127.0.0.1', 5010, 'GET')
+main()
+request_site('127.0.0.1', 5010, 'GET', 'test.html')
 
