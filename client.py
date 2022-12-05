@@ -5,7 +5,15 @@ import sys
 import time
 
 
-def request_site(host, port, _type, file=''):
+def request_site(host: str, port: int, _type: str, file: str = '') -> None:
+    '''
+    :param host: server ip or domain to request to
+    :param port: server port
+    :param _type: GET or PUT request
+    :param file: name of file to request, if requesting one
+
+    Performs a GET or PUT request to a given host and port
+    '''
     assert _type in ('GET', 'PUT')
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(10)
@@ -17,7 +25,13 @@ def request_site(host, port, _type, file=''):
         send_file(sock, file)
 
 
-def receive_file(sock, file):
+def receive_file(sock: socket.socket, file: str) -> None:
+    '''
+    :param sock: active socket to read from
+    :param file: name to save the file as
+
+    Reads the data from the socket and stores it in the given filename
+    '''
     response = b""
     while True:
         try:
@@ -47,7 +61,13 @@ def receive_file(sock, file):
     sock.close()
 
 
-def send_file(sock, file):
+def send_file(sock: socket.socket, file: str) -> None:
+    '''
+    :param sock: active socket to send to
+    :param file: name of file to send
+
+    sends the data from the given file to the given socket
+    '''
     try:
         with open(file, 'rb') as f:
             body_data = f.read()
@@ -59,6 +79,9 @@ def send_file(sock, file):
 
 
 def main():
+    '''
+    takes input from command line, or requests input if not given, and calls the appropriate function
+    '''
     args = sys.argv[1:]
     if len(args) not in (3, 4):
         print('arguments not supplied properly in command line, must be manually entered.')
@@ -70,6 +93,6 @@ def main():
         ]
     request_site(*args)
 
-# main()
-request_site('127.0.0.1', 5010, 'PUT', 'test.html')
+main()
+# request_site('127.0.0.1', 5010, 'PUT', 'test.html')
 

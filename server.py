@@ -7,7 +7,11 @@ import time
 
 
 class Server:
-    def __init__(self, default_timeout=10, extended_timeout=100, host='0.0.0.0', port=5010):
+    def __init__(self,
+                 host: str = '0.0.0.0',
+                 port: int = 5010,
+                 default_timeout: int = 10,
+                 extended_timeout: int = 100):
         self.sock = None
         self.default_timeout = default_timeout
         self.extended_timeout = extended_timeout
@@ -91,9 +95,12 @@ def separate_chunks(data, length=4096):
         counter += length
     return chunks
 
-s = Server()
-s.accept_connection()
+
+def main():
+    s = Server()
+    s.accept_connection()
 
 
-
+if __name__ == '__main__':
+    main()
 
