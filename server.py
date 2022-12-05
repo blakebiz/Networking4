@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import re
 import threading
@@ -38,34 +39,52 @@ class Server:
         return response
 
     def respond(self, data):
-        pattern = re.compile(r'([^ ]*) */ *HTTP/1.1([^ :]*) ?Host:([^ ]*) +([^ ]*)')
+        pattern = re.compile(r'^([^ ]*) / HTTP/1.1([^ :]*) ?Host:([^ ]*) +([^ ]*) ?(.*)$')
+        print(data)
         match = pattern.fullmatch(data.decode())
+        print(match)
         if match:
-            sub_sep, _type, host, sep = match.groups()
-            pattern = re.compile(r'(\d+.\d+.\d+.\d+)/?(.*)')
+            _type, sub_sep, host, sep, body = match.groups()
+            print('type:', _type)
+            pattern = re.compile(r'(\d+\.\d+\.\d+\.\d+)/?(.*)')
             _, file = pattern.fullmatch(host).groups()
+            if _type == 'PUT':
+                return self.receive_file(file, body)
             try:
                 with open(file, 'rb') as f:
                     body_data = f.read()
+                header = json.dumps({'status-code': 200}).encode()
             except FileNotFoundError:
                 body_data = b'FILE NOT FOUND!'
+                header = json.dumps({'status-code': 404}).encode()
 
-            header = json.dumps({'this-is-a-header': True}).encode()
-            chunks = seperate_chunks(header + sep.encode() + body_data)
+
+            chunks = separate_chunks(header + sep.encode() + body_data)
             print(chunks)
             for chunk in chunks:
                 self.sock.send(chunk)
-            self.sock.send(b'')
             self.sock.close()
             self.accept_connection()
         else:
+            print(data)
             self.sock.send(b'Invalid request, closing connection. To retry, reconnect.')
-            self.sock.send(b'')
             self.sock.close()
             self.accept_connection()
 
+    def receive_file(self, file, body):
+        print('ran')
+        if not os.path.isdir('srec'):
+            os.mkdir('srec')
+        if file:
+            print(f'file has been saved as: srec/{file}')
+            with open('srec/' + file, 'w') as f:
+                f.write(body)
+        else:
+            print('body:', body)
+        self.sock.close()
 
-def seperate_chunks(data , length=4096):
+
+def separate_chunks(data, length=4096):
     counter, chunks = 0, []
     while counter < len(data):
         chunks.append(data[counter:length])
